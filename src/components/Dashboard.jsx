@@ -228,12 +228,12 @@ function Dashboard() {
 
         <div
           id="right-col"
-          className="px-4 sm:px-10 py-4 sm:py-5 bg-white rounded-lg grid gap-5 w-full sm:w-1/2"
+          className="px-4 sm:px-10 py-4 mt-5 md:mt-0 sm:py-5 bg-white rounded-lg grid gap-5 w-full sm:w-1/2"
         >
           <span className="text-xl sm:text-2xl uppercase font-semibold text-blue-500">
             Add An Expense
           </span>
-          <label htmlFor="category" className="text-lg sm:text-2xl capitalize">
+          <label htmlFor="category" className="text-lg font-semibold sm:text-2xl capitalize">
             Enter Category
           </label>
           <input
@@ -244,7 +244,7 @@ function Dashboard() {
             onChange={handleChangeCategory}
             placeholder="Ex: Vegetables"
           />
-          <label htmlFor="amount" className="text-lg sm:text-2xl capitalize">
+          <label htmlFor="amount" className="text-lg font-semibold sm:text-2xl capitalize">
             Enter Amount
           </label>
           <input
