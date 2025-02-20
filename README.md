@@ -33,7 +33,7 @@ Ensure you have the following installed:
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/your-username/expense-tracker.git
+   git clone https://github.com/AadityaMohan-dev/expense-tracker.git
     cd expense-tracker
     ```
 
@@ -59,20 +59,6 @@ Ensure you have the following installed:
     http://localhost:5173
     ```
 
-## Project Structure
-
-```
-📂 expense-tracker
-├── 📂 src
-│    ├── 📂 components      # React components
-│    ├── 📂 pages           # Page components
-│    ├── 📂 utils           # Utility functions
-│    └── main.jsx          # Entry point
-├── 📜 index.html          # Main HTML file
-├── 📜 package.json        # Project metadata and scripts
-└── 📜 tailwind.config.js  # Tailwind CSS configuration
-```
-
 ## Customization
 
 Feel free to customize the app by modifying the components in the `src` folder. You can also update Tailwind CSS configurations via the `tailwind.config.js` file.
@@ -81,11 +67,7 @@ Feel free to customize the app by modifying the components in the `src` folder. 
 
 Contributions are welcome! If you'd like to enhance the project, feel free to open a pull request.
 
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
 ## Contact
 
-For any questions or suggestions, reach out to [your-email@example.com](mailto:your-email@example.com).
+For any questions or suggestions, reach out to [aadimohan51@gmail.com](mailto:aadimohan51@gmail.com).
 
