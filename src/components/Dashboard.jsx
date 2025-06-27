@@ -12,82 +12,101 @@ import {
 } from "chart.js";
 import Modal from "./Modal";
 
-// Register the required components for Chart.js
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+// ChartJS setup
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 function Dashboard() {
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
-  const [totalAmountLeft, setTotalAmountLeft] = useState(100); // Initialize with a total amount
+  const [totalAmountLeft, setTotalAmountLeft] = useState(100);
   const [savedAmount, setSavedAmount] = useState(0);
   const [userDetails, setUserDetails] = useState({ name: "", budget: "" });
-  const [expenses, setExpenses] = useState([]); // Array of expense objects
-  const [editingExpense, setEditingExpense] = useState(null); // Track the expense being edited
+  const [expenses, setExpenses] = useState([]); // should always be an array
+  const [editingExpense, setEditingExpense] = useState(null);
   const [editedCategory, setEditedCategory] = useState("");
   const [editedAmount, setEditedAmount] = useState("");
-  const [modalOpen, setModalOpen] = useState(false); // Manage modal visibility
+  const [modalOpen, setModalOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Load from localStorage
   useEffect(() => {
-    // Retrieve user details from localStorage
     const userDetailsString = localStorage.getItem("userDetails");
     if (userDetailsString) {
       const details = JSON.parse(userDetailsString);
       setUserDetails(details);
-      const initialBudget = parseFloat(details.budget);
-      setTotalAmountLeft(initialBudget - savedAmount);
     }
 
-    // Retrieve the saved amount from localStorage
     const storedAmount = localStorage.getItem("savedAmount");
     if (storedAmount) {
       setSavedAmount(parseFloat(storedAmount));
-      if (userDetails.budget) {
-        setTotalAmountLeft(parseFloat(userDetails.budget) - parseFloat(storedAmount));
-      }
     }
 
-    // Retrieve expenses from localStorage
     const storedExpenses = localStorage.getItem("expenses");
     if (storedExpenses) {
-      setExpenses(JSON.parse(storedExpenses));
-    }
-  }, [savedAmount, userDetails.budget]);
+      const parsed = JSON.parse(storedExpenses);
 
-  const calculateTotalAmountLeft = () => {
+      // 🔐 Ensure `expenses` is always an array
+      if (Array.isArray(parsed)) {
+        setExpenses(parsed);
+      } else {
+        const converted = Object.entries(parsed).map(([category, amount]) => ({
+          category,
+          amount,
+          date: new Date().toLocaleString(),
+        }));
+        setExpenses(converted);
+      }
+    }
+  }, []);
+
+  // Calculate remaining amount
+  useEffect(() => {
     if (userDetails.budget) {
       setTotalAmountLeft(parseFloat(userDetails.budget) - savedAmount);
     }
-  };
+  }, [savedAmount, userDetails.budget]);
 
-  const handleChangeCategory = (e) => {
-    setCategory(e.target.value);
-  };
+  const handleChangeCategory = (e) => setCategory(e.target.value);
+  const handleChangeAmount = (e) => setAmount(e.target.value);
 
-  const handleChangeAmount = (e) => {
-    setAmount(e.target.value);
-  };
-
+  // ✅ Add/update expense
   const handleSubmit = () => {
-    const newSavedAmount = savedAmount + parseFloat(amount);
-    localStorage.setItem("savedAmount", newSavedAmount);
-    setSavedAmount(newSavedAmount);
-    setTotalAmountLeft(parseFloat(userDetails.budget) - newSavedAmount);
+    const parsedAmount = parseFloat(amount);
+    if (!category || isNaN(parsedAmount)) return;
 
-    // Update expenses and localStorage
-    const newExpense = { category, amount: parseFloat(amount), date: new Date().toLocaleString() };
-    const updatedExpenses = [...expenses, newExpense];
-    localStorage.setItem("expenses", JSON.stringify(updatedExpenses));
-    setExpenses(updatedExpenses);
+    setExpenses((prevExpenses) => {
+      const updatedExpenses = [...prevExpenses];
+      const index = updatedExpenses.findIndex(
+        (exp) => exp.category.toLowerCase() === category.toLowerCase()
+      );
 
-    // Clear input fields
+      if (index !== -1) {
+        // Category exists → update amount
+        updatedExpenses[index] = {
+          ...updatedExpenses[index],
+          amount: updatedExpenses[index].amount + parsedAmount,
+          date: new Date().toLocaleString(),
+        };
+      } else {
+        // New category → add entry
+        updatedExpenses.push({
+          category,
+          amount: parsedAmount,
+          date: new Date().toLocaleString(),
+        });
+      }
+
+      // Update localStorage + states
+      const newSavedAmount = updatedExpenses.reduce((acc, exp) => acc + exp.amount, 0);
+      localStorage.setItem("expenses", JSON.stringify(updatedExpenses));
+      localStorage.setItem("savedAmount", newSavedAmount);
+
+      setSavedAmount(newSavedAmount);
+      setTotalAmountLeft(parseFloat(userDetails.budget) - newSavedAmount);
+
+      return updatedExpenses;
+    });
+
     setCategory("");
     setAmount("");
   };
@@ -97,7 +116,7 @@ function Dashboard() {
     setEditingExpense(index);
     setEditedCategory(expenseToEdit.category);
     setEditedAmount(expenseToEdit.amount);
-    setModalOpen(true); // Open the modal
+    setModalOpen(true);
   };
 
   const handleEditSubmit = () => {
@@ -109,17 +128,14 @@ function Dashboard() {
     localStorage.setItem("expenses", JSON.stringify(updatedExpenses));
     setExpenses(updatedExpenses);
 
-    // Recalculate savedAmount
     const newSavedAmount = updatedExpenses.reduce((acc, exp) => acc + exp.amount, 0);
     setSavedAmount(newSavedAmount);
-    
-    // Recalculate total amount left
-    calculateTotalAmountLeft();
-    
+    setTotalAmountLeft(parseFloat(userDetails.budget) - newSavedAmount);
+
     setEditingExpense(null);
     setEditedCategory("");
     setEditedAmount("");
-    setModalOpen(false); // Close the modal
+    setModalOpen(false);
   };
 
   const handleDelete = (index) => {
@@ -127,12 +143,9 @@ function Dashboard() {
     localStorage.setItem("expenses", JSON.stringify(updatedExpenses));
     setExpenses(updatedExpenses);
 
-    // Recalculate savedAmount
     const newSavedAmount = updatedExpenses.reduce((acc, exp) => acc + exp.amount, 0);
     setSavedAmount(newSavedAmount);
-
-    // Recalculate total amount left
-    calculateTotalAmountLeft();
+    setTotalAmountLeft(parseFloat(userDetails.budget) - newSavedAmount);
   };
 
   const handleLogout = () => {
@@ -142,7 +155,6 @@ function Dashboard() {
     navigate("/");
   };
 
-  // Prepare data for the chart
   const expenseData = {
     labels: expenses.map((exp) => exp.category),
     datasets: [
@@ -159,96 +171,69 @@ function Dashboard() {
   const options = {
     responsive: true,
     plugins: {
-      legend: {
-        position: "top",
-      },
+      legend: { position: "top" },
       tooltip: {
         callbacks: {
-          label: function (tooltipItem) {
-            return `Amount: $${tooltipItem.raw}`;
-          },
+          label: (tooltipItem) => `Amount: $${tooltipItem.raw}`,
         },
       },
     },
   };
 
   return (
-    <div id="main-dashboard" className="h-full md:px-8 md:py-8 lg:px-10 lg:py-10">
-      <div id="row-1" className="flex flex-col sm:flex-row sm:justify-between pb-5">
-        <h1 className="text-white text-3xl sm:text-4xl md:text-5xl">
-          Welcome,{" "}
-          <span className="text-blue-500">{userDetails.name}</span>
+    <div className="h-full md:px-8 md:py-8 lg:px-10 lg:py-10">
+      <div className="flex flex-col sm:flex-row sm:justify-between pb-5">
+        <h1 className="text-white text-4xl">
+          Welcome, <span className="text-blue-500">{userDetails.name}</span>
         </h1>
-        <button
-          className="bg-red-600 text-white px-4 py-2 font-semibold rounded mt-4 sm:mt-0"
-          onClick={handleLogout}
-        >
+        <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 font-semibold rounded mt-4 sm:mt-0">
           Logout
         </button>
       </div>
-      <div id="row-2" className="flex flex-col sm:flex-row sm:gap-5">
-        <div id="left-col" className="w-full sm:w-1/2">
-          <div
-            id="total-amount-left"
-            className="bg-white rounded-lg shadow-lg p-4 sm:p-5 h-auto sm:h-36"
-          >
-            <span className="text-lg sm:text-xl font-semibold">
+
+      <div className="flex flex-col sm:flex-row sm:gap-5">
+        <div className="w-full sm:w-1/2">
+          <div className="bg-white rounded-lg shadow-lg p-5 h-36">
+            <span className="text-xl font-semibold">
               Total Amount Left: ${totalAmountLeft.toFixed(2)}
             </span>
             <div className="mt-2">
-              <div className="relative pt-1">
-                <div className="flex mb-2 items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">
-                    $0
-                  </span>
-                  <span className="text-sm font-medium text-gray-700">
-                    ${userDetails.budget}
-                  </span>
-                </div>
-                <div className="flex">
-                  <div className="bg-gray-200 rounded-full h-4 w-full">
-                    <div
-                      className="bg-blue-500 h-4 rounded-full"
-                      style={{
-                        width: `${
-                          (totalAmountLeft / parseFloat(userDetails.budget)) *
-                          100
-                        }%`,
-                      }}
-                    ></div>
-                  </div>
-                </div>
+              <div className="flex justify-between text-sm text-gray-700">
+                <span>$0</span>
+                <span>${userDetails.budget}</span>
+              </div>
+              <div className="bg-gray-200 h-4 rounded-full mt-1">
+                <div
+                  className="bg-blue-500 h-4 rounded-full"
+                  style={{
+                    width: `${(totalAmountLeft / parseFloat(userDetails.budget || 1)) * 100}%`,
+                  }}
+                ></div>
               </div>
             </div>
           </div>
-          <div id="graph" className="mt-5 bg-white rounded-lg p-4 sm:p-10 h-auto sm:h-72">
+
+          <div className="mt-5 bg-white rounded-lg p-4 sm:p-10 h-72">
             <Bar data={expenseData} options={options} />
           </div>
         </div>
 
-        <div
-          id="right-col"
-          className="px-4 sm:px-10 py-4 mt-5 md:mt-0 sm:py-5 bg-white rounded-lg grid gap-5 w-full sm:w-1/2"
-        >
-          <span className="text-xl sm:text-2xl uppercase font-semibold text-blue-500">
+        <div className="px-4 sm:px-10 py-4  sm:py-5 bg-white rounded-lg grid gap-5 w-full sm:w-1/2">
+          <span className="text-2xl uppercase font-semibold text-blue-500">
             Add An Expense
           </span>
-          <label htmlFor="category" className="text-lg font-semibold sm:text-2xl capitalize">
-            Enter Category
-          </label>
+          <label htmlFor="category" className="text-xl font-semibold capitalize">Enter Category</label>
           <input
-            className="border border-black rounded-md h-10 sm:h-12 px-4 sm:px-5"
+            className="border border-black rounded-md h-12 px-4"
             type="text"
             name="category"
             value={category}
             onChange={handleChangeCategory}
             placeholder="Ex: Vegetables"
           />
-          <label htmlFor="amount" className="text-lg font-semibold sm:text-2xl capitalize">
-            Enter Amount
-          </label>
+          <label htmlFor="amount" className="text-xl font-semibold capitalize">Enter Amount</label>
           <input
-            className="border border-black rounded-md h-10 sm:h-12 px-4 sm:px-5"
+            className="border border-black rounded-md h-12 px-4"
             type="number"
             name="amount"
             value={amount}
@@ -256,7 +241,7 @@ function Dashboard() {
             placeholder="Ex: 1000"
           />
           <button
-            className="bg-blue-600 h-10 sm:h-12 rounded-lg font-semibold text-white uppercase mt-3"
+            className="bg-blue-600 h-12 rounded-lg font-semibold text-white uppercase mt-3"
             onClick={handleSubmit}
           >
             Add
@@ -264,45 +249,41 @@ function Dashboard() {
         </div>
       </div>
 
-      <div id="row-3" className="mt-5 bg-white rounded-lg p-4 sm:p-10 h-auto sm:h-[100vh] overflow-y-auto">
-        <div id="head" className="mb-5">
-          <span className="text-xl sm:text-3xl text-blue-600 uppercase font-semibold">Transactions</span>
-        </div>
-        <div id="table">
-          <table className="min-w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="border border-gray-300 p-2">Category</th>
-                <th className="border border-gray-300 p-2">Amount</th>
-                <th className="border border-gray-300 p-2">Date</th>
-                <th className="border border-gray-300 p-2">Actions</th>
+      <div className="mt-5 bg-white rounded-lg p-10 h-auto overflow-y-auto">
+        <span className="text-3xl text-blue-600 uppercase font-semibold">Transactions</span>
+        <table className="min-w-full border-collapse mt-4">
+          <thead>
+            <tr>
+              <th className="border p-2">Category</th>
+              <th className="border p-2">Amount</th>
+              <th className="border p-2">Date</th>
+              <th className="border p-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {expenses.map((exp, index) => (
+              <tr key={index} className="text-center">
+                <td className="border capitalize p-2">{exp.category}</td>
+                <td className="border p-2">${exp.amount.toFixed(2)}</td>
+                <td className="border p-2">{exp.date}</td>
+                <td className="border p-2 flex justify-center space-x-2">
+                  <button
+                    className="bg-yellow-500 text-white font-semibold px-3 py-1 rounded"
+                    onClick={() => handleEdit(index)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="bg-red-600 text-white px-3 py-1 font-semibold rounded"
+                    onClick={() => handleDelete(index)}
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {expenses.map((exp, index) => (
-                <tr key={index} className="text-center">
-                  <td className="border border-gray-300 p-2">{exp.category}</td>
-                  <td className="border border-gray-300 p-2">${exp.amount.toFixed(2)}</td>
-                  <td className="border border-gray-300 p-2">{exp.date}</td>
-                  <td className="border border-gray-300 p-2 flex justify-center space-x-2">
-                    <button
-                      className="bg-yellow-500 text-white font-semibold px-2 sm:px-3 py-1 rounded"
-                      onClick={() => handleEdit(index)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="bg-red-600 text-white px-2 font-semibold sm:px-3 py-1 rounded"
-                      onClick={() => handleDelete(index)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <Modal
